@@ -22,8 +22,9 @@
 <body>
   <div class="card">
     <h1>Option 43 Hex Generator</h1>
-    <div class="small">Kullanıcıdan bir veya iki IP alır — bunları hex'e çevirir ve Huawei / Cisco için option 43 komutunu üretir.</div>
+    <div class="small">Bir veya iki IP'yi hex'e çevirir, ayrıca girilen hex değerini IP'ye çevirebilir.</div>
 
+    <h3>IP ➝ Hex</h3>
     <label>IP 1</label>
     <input id="ip1" type="text" placeholder="örn: 192.168.0.1" />
 
@@ -44,14 +45,22 @@
     <button id="generate">Üret</button>
 
     <div class="out">
-      <h3>Sonuçlar</h3>
-      <div class="small">Kopyala butonlarıyla router'a yapıştırılabilir komutlar.</div>
-
       <h4>Huawei</h4>
       <div class="flex"><pre id="huawei">--</pre><button class="copy" data-target="huawei">Kopyala</button></div>
 
       <h4>Cisco</h4>
       <div class="flex"><pre id="cisco">--</pre><button class="copy" data-target="cisco">Kopyala</button></div>
+    </div>
+
+    <h3 style="margin-top:30px">Hex ➝ IP</h3>
+    <label>Hex Değerini Girin</label>
+    <input id="hexInput" type="text" placeholder="örn: 01040a05620201040ac99715 veya 0104.0a05.6202.0104.0ac9.9715" />
+
+    <button id="decode">Hex'i IP'ye Çevir</button>
+
+    <div class="out">
+      <h4>Çözümlenen IP'ler</h4>
+      <pre id="decodedIps">--</pre>
     </div>
   </div>
 
@@ -69,6 +78,28 @@
 
     function formatCisco(hex){
       return hex.match(/.{1,4}/g).join('.');
+    }
+
+    function hexToIp(hex){
+      let clean = hex.replace(/\./g,'').toLowerCase();
+      let ips = [];
+      let idx = 0;
+      while(idx < clean.length){
+        if(clean.substr(idx,2) === '01' && clean.substr(idx+2,2) === '04'){
+          let ipHex = clean.substr(idx+4,8);
+          if(ipHex.length === 8){
+            let ip = [];
+            for(let i=0;i<4;i++){
+              ip.push(parseInt(ipHex.substr(i*2,2),16));
+            }
+            ips.push(ip.join('.'));
+          }
+          idx += 12;
+        } else {
+          idx += 2;
+        }
+      }
+      return ips;
     }
 
     document.getElementById('generate').addEventListener('click', ()=>{
@@ -91,17 +122,25 @@
         document.getElementById('hex2').value = '';
       }
 
-      // Huawei command
       let huaweiCmd = `option 43 hex 0104${hex1}`;
       if(hex2) huaweiCmd += `0104${hex2}`;
 
-      // Cisco command with dotted 4-char groups
       let ciscoCmd = `option 43 hex 0104.${formatCisco(hex1)}`;
       if(hex2) ciscoCmd += `.0104.${formatCisco(hex2)}`;
 
       document.getElementById('huawei').textContent = huaweiCmd;
       document.getElementById('cisco').textContent = ciscoCmd;
-    })
+    });
+
+    document.getElementById('decode').addEventListener('click', ()=>{
+      const hexInput = document.getElementById('hexInput').value.trim();
+      if(!hexInput){
+        alert('Lütfen bir hex değeri girin.');
+        return;
+      }
+      const ips = hexToIp(hexInput);
+      document.getElementById('decodedIps').textContent = ips.length? ips.join("\n") : 'Geçerli IP bulunamadı';
+    });
 
     document.querySelectorAll('.copy').forEach(btn=>{
       btn.addEventListener('click', ()=>{
