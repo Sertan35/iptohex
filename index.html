@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Option 43 Hex Generator</title>
+  <style>
+    body{font-family:Inter, system-ui, Arial; background:#0f1724; color:#e6eef8; padding:24px}
+    .card{background:#0b1220;border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(2,6,23,.6);max-width:900px;margin:20px auto}
+    h1{font-size:20px;margin:0 0 8px}
+    label{display:block;margin-top:12px;font-size:13px;color:#b9c6d9}
+    input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid #203040;background:#071224;color:#dceefa}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    button{margin-top:12px;padding:10px 14px;border-radius:10px;border:0;background:#0ea5a0;color:#032022;cursor:pointer}
+    pre{background:#041022;padding:12px;border-radius:8px;overflow:auto}
+    .out{margin-top:14px}
+    .small{font-size:12px;color:#99a9c6}
+    .copy{cursor:pointer;padding:6px 8px;border-radius:8px;border:0;background:#16324a;color:#dff3ff;margin-left:8px}
+    .flex{display:flex;align-items:center}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Option 43 Hex Generator</h1>
+    <div class="small">Kullanıcıdan bir veya iki IP alır — bunları hex'e çevirir ve Huawei / Cisco için option 43 komutunu üretir.</div>
+
+    <label>IP 1</label>
+    <input id="ip1" type="text" placeholder="örn: 192.168.0.1" />
+
+    <label>IP 2 (opsiyonel)</label>
+    <input id="ip2" type="text" placeholder="örn: 192.168.0.2" />
+
+    <div class="row">
+      <div>
+        <label>IP1 Hex</label>
+        <input id="hex1" type="text" readonly />
+      </div>
+      <div>
+        <label>IP2 Hex</label>
+        <input id="hex2" type="text" readonly />
+      </div>
+    </div>
+
+    <button id="generate">Üret</button>
+
+    <div class="out">
+      <h3>Sonuçlar</h3>
+      <div class="small">Kopyala butonlarıyla router'a yapıştırılabilir komutlar.</div>
+
+      <h4>Huawei</h4>
+      <div class="flex"><pre id="huawei">--</pre><button class="copy" data-target="huawei">Kopyala</button></div>
+
+      <h4>Cisco</h4>
+      <div class="flex"><pre id="cisco">--</pre><button class="copy" data-target="cisco">Kopyala</button></div>
+    </div>
+  </div>
+
+  <script>
+    function validIp(ip){
+      if(!ip) return false;
+      const parts = ip.trim().split('.');
+      if(parts.length!==4) return false;
+      return parts.every(p=>{ if(!/^\d+$/.test(p)) return false; const n=Number(p); return n>=0 && n<=255 });
+    }
+
+    function ipToRawHex(ip){
+      return ip.split('.').map(b=>{ const n=Number(b); return n.toString(16).padStart(2,'0') }).join('').toLowerCase();
+    }
+
+    function formatCisco(hex){
+      return hex.match(/.{1,4}/g).join('.');
+    }
+
+    document.getElementById('generate').addEventListener('click', ()=>{
+      const ip1 = document.getElementById('ip1').value.trim();
+      const ip2 = document.getElementById('ip2').value.trim();
+
+      if(!validIp(ip1)){
+        alert('En azından geçerli bir IP1 girin.');
+        return;
+      }
+
+      const hex1 = ipToRawHex(ip1);
+      document.getElementById('hex1').value = hex1.toUpperCase();
+
+      let hex2 = '';
+      if(ip2 && validIp(ip2)){
+        hex2 = ipToRawHex(ip2);
+        document.getElementById('hex2').value = hex2.toUpperCase();
+      } else {
+        document.getElementById('hex2').value = '';
+      }
+
+      // Huawei command
+      let huaweiCmd = `option 43 hex 0104${hex1}`;
+      if(hex2) huaweiCmd += `0104${hex2}`;
+
+      // Cisco command with dotted 4-char groups
+      let ciscoCmd = `option 43 hex 0104.${formatCisco(hex1)}`;
+      if(hex2) ciscoCmd += `.0104.${formatCisco(hex2)}`;
+
+      document.getElementById('huawei').textContent = huaweiCmd;
+      document.getElementById('cisco').textContent = ciscoCmd;
+    })
+
+    document.querySelectorAll('.copy').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const target = btn.getAttribute('data-target');
+        const text = document.getElementById(target).textContent;
+        navigator.clipboard.writeText(text).then(()=>{
+          btn.textContent = 'Kopyalandı!';
+          setTimeout(()=>btn.textContent='Kopyala',900);
+        }).catch(()=>{ alert('Kopyalama başarısız. Manuel seçip kopyalayın.') })
+      })
+    })
+  </script>
+</body>
+</html>
